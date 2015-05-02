@@ -1,0 +1,307 @@
+#!/bin/sh
+
+# Script to backup linux server to aws ec2.
+# Lindo St. Angel 2014.
+
+# Script assumes an existing aws account and aws cli tools have been installed on client.
+# The aws cli's credentials must have been correctly configured and command output set to 'text'. 
+
+# The script backups incremental changes from the last backup.
+# This assumes that a full backup was done to start with. 
+
+# This script generally follows these steps (with error checking).
+# 1. Get external IP address of host (also serves to check for Internet connection.)
+# 2. Create a volume from the previous backup snapshot.
+# 3. Create an ec2 security group. 
+# 4. Create an machine instance with ec2.
+# 5. Attach a volume to it.
+# 6. Mount the volume.
+# 7. rsync some directories to the volume mounted on the remote machine
+# 8. Unmount and detach the volume.
+# 9. Terminate the machine.
+# 10. Delete security group.
+# 11. Backup the volume to an S3 snapshot. 
+# 12. Delete the volume. 
+
+# Define location of rsync logfile.
+RSYNC_LOG=/home/lindo/backup/ec2-backup-rsync.log
+
+### ec2 parameters ###
+# Define machine. ami-10fd7020 is an amazon linux x64 ebs amazon machine instance (default user is ec2-user).
+EC2_MACH=ami-10fd7020
+# Define machine type. Note that m3.medium supports encryption. 
+EC2_TYPE=m3.medium
+# Define aviliblity zone. us-west-2b is an availiblity zone in the US West (Oregon) Region. 
+EC2_ZONE=us-west-2b
+# Define location of keys needed for accessing the ec2 instance via ssh. 
+EC2_KEY_LOC=/home/lindo/.ec2
+# Define keypair.
+EC2_KPAR=amznkey
+
+echo "***************************************************************"
+echo "Starting ec2 backup of `uname -n` on `date +%y/%m/%d_%H:%M:%S`"
+echo "***************************************************************"
+
+# Get external ip address of host to be backed up.
+IP_ADDR=`curl -s ip.appspot.com`
+#IP_ADDR=`curl -s ifconfig.me/ip`
+if [ -z "$IP_ADDR" ]
+then
+  echo "***Error - Can't get external IP address, terminating."
+  exit 1
+else
+  echo "***Info - External IP address is $IP_ADDR."
+fi
+
+# Get the ID of the previous snapshot. (To do - figure out why Values=lindo\'s backup snapshot doesn't work.) 
+SS_ID=`aws ec2 describe-snapshots --owner self --filters Name=description,Values=*backup* | tail -n 1 | awk '/snap*/ {print $8}'`
+if [ -z "SS_ID" ]
+then
+  echo "***Error - Cannot get ID of previous snapshot, terminating backup"
+  exit 1
+else
+  echo "***Info - Using previous snapshot $SS_ID."
+fi
+
+# Create working volume from previous backup snapshot. It must be in the same availablity zone as the instance.
+EC2_VOLUME=`aws ec2 create-volume --availability-zone $EC2_ZONE --snapshot-id $SS_ID | tr '\t' '\n' | grep '^vol-'`
+if [ -z "$EC2_VOLUME" ]
+then
+  echo "***Error - Cannot create volume, terminating backup"
+  exit 1
+else
+  echo "***Info - Created volume $EC2_VOLUME."
+fi
+
+# Create security group.
+# Note that local and remote machine time of day need to be fairly close other this will fail. 
+EC2_SG=`aws ec2 create-security-group --group-name backup --description "backup server" | tr '\t' '\n' | grep '^sg-'`
+if [ -z "$EC2_SG" ]
+then
+  echo "***Error - Can't create security group, terminating backup."
+  aws ec2 delete-security-group --group-name backup > /dev/null
+  aws ec2 delete-volume --volume $EC2_VOLUME > /dev/null
+  exit 1
+else
+  # update security group with host ip addr to allow ssh from that only
+  CIDR=/32
+  aws ec2 authorize-security-group-ingress --group-name backup --protocol tcp --port 22 --cidr $IP_ADDR$CIDR > /dev/null
+  echo "***Info - Created security group $EC2_SG."
+fi
+
+# Create an aws ec2 instance.
+EC2_INSTANCE=`aws ec2 run-instances --image-id $EC2_MACH --instance-type $EC2_TYPE --key-name $EC2_KPAR --security-groups backup \
+  --placement AvailabilityZone=us-west-2b | tr '\t' '\n' | grep '^i-'`
+if [ -z "$EC2_INSTANCE" ]
+then
+  echo "***Error - Can't create EC2 instance, terminating backup."
+  aws ec2 delete-security-group --group-name backup > /dev/null
+  aws ec2 delete-volume --volume $EC2_VOLUME > /dev/null
+  exit 1
+else
+  echo "***Info - Created ec2 instance $EC2_INSTANCE."
+fi
+
+# Need to make sure that we ssh into only our instance - for that get ssh fingerprints of instance.
+# Seems to take about 3 to 4 minutes for SSH fingerprints to show show up in console output.
+# Wait for 2 and a half minutes, then start polling output until they show up.
+echo "***Info - Waiting for $EC2_INSTANCE to boot."
+sleep 150
+# Wait for instance to boot up.
+i=0
+while [ $i -lt 10 ]
+do
+  FINGERPRINTS=`aws ec2 get-console-output --instance-id $EC2_INSTANCE | egrep -m 1 -o '([0-9a-f][0-9a-f]:){15}[0-9a-f][0-9a-f]'`
+  if [ "$FINGERPRINTS" = "" ]
+  then
+    sleep 30
+    echo "***Info - Booting...$i"
+    i=`expr $i + 1`
+  else
+    break
+  fi
+done
+if [ "$FINGERPRINTS" = "" ]
+then
+  echo "***Error - Could not get instance fingerprints! Terminating backup."
+  aws ec2 terminate-instances --instance-ids $EC2_INSTANCE > /dev/null
+  sleep 60
+  aws ec2 delete-security-group --group-name backup > /dev/null
+  aws ec2 delete-volume --volume $EC2_VOLUME > /dev/null
+  exit 1
+else
+  echo "***Info - Expected fingerprints are $FINGERPRINTS."
+fi
+
+# Get hostname for the instance.
+EC2_HOST=`aws ec2 describe-instances | grep $EC2_INSTANCE | tr '\t' '\n' | grep amazonaws.com`
+echo "***Info - Host is $EC2_HOST."
+
+# Generate actual fingerprints.
+# Sleep for 150 s. Then poll. Have seen cases where ssh-keyscan fails if run too soon.
+echo "***Info - Waiting for $EC2_INSTANCE to be ready for ssh-keyscan."
+sleep 150
+i=0
+while [ $i -lt 15 ]
+do
+  /usr/bin/ssh-keyscan $EC2_HOST > /tmp/host.key
+  if grep "ssh-rsa" /tmp/host.key > /dev/null
+  then
+    break
+  else
+    sleep 30
+    echo "***Info - Running ssh-keyscan again...$i"
+    i=`expr $i + 1`
+  fi
+done
+/usr/bin/ssh-keygen -lf /tmp/host.key > /tmp/host.fingerprint
+ACTUAL_FINGERPRINTS=`awk '{print $2}' /tmp/host.fingerprint`
+echo "***Info - Actual fingerprints are $ACTUAL_FINGERPRINTS."
+shred -u /tmp/host.key /tmp/host.fingerprint
+
+# Check to see if fingerprints match. 
+if [ "$ACTUAL_FINGERPRINTS" != "$FINGERPRINTS" ]
+then
+  echo "***Error - Fingerprints do not match. Possible man in the middle attack! Terminating backup."
+  aws ec2 terminate-instances --instance-ids $EC2_INSTANCE > /dev/null
+  sleep 60
+  aws ec2 delete-security-group --group-name backup > /dev/null
+  aws ec2 delete-volume --volume $EC2_VOLUME > /dev/null
+  exit 1
+else
+  echo "***Info - Ready to connect to instance and prepare it to begin backup."
+fi
+
+# Attach the volume that will store the backup data.
+aws ec2 attach-volume --volume-id $EC2_VOLUME --instance-id $EC2_INSTANCE --device /dev/sdh > /dev/null
+sleep 60
+echo "***Info - Attached storage volume $EC2_VOLUME."
+
+# (1) make backup directory; (2) mount the volume;
+# (3) force allocation of a pseudo-tty by appending “Defaults !requiretty” to /etc/sudoers.
+# Note /dev/sdh gets mapped to /dev/xvdh by the remote machine's kernel.
+# Note "ssh -t -t" forces a tty to be allocated on the remote machine.
+# Note that we don't need to check known host file since fingerprint of host has already been verified.
+/usr/bin/ssh -q -t -t -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no \
+  -i $EC2_KEY_LOC/amznkey.pem ec2-user@$EC2_HOST \
+  "sudo mkdir /mnt/data-store && sudo mount /dev/xvdh /mnt/data-store && \
+  echo 'Defaults !requiretty' | sudo tee /etc/sudoers.d/rsync > /dev/null"
+err=$?
+if [ $err -ne 0 ]
+then
+  echo "***Error - SSH to remote server to prep for backup failed with error code ${err}."
+  echo "***Error - Terminating backup."
+  aws ec2 detach-volume --volume-id $EC2_VOLUME > /dev/null
+  sleep 30
+  aws ec2 terminate-instances --instance-ids $EC2_INSTANCE > /dev/null
+  sleep 60
+  aws ec2 delete-security-group --group-name backup > /dev/null
+  aws ec2 delete-volume --volume $EC2_VOLUME > /dev/null
+  exit 1
+else
+  echo "***Info - Instance prepared for backup."
+fi
+
+# Backup starting at / using rsync push via remote shell. 
+/usr/bin/rsync -q -e "/usr/bin/ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i $EC2_KEY_LOC/amznkey.pem" \
+  --rsync-path "sudo rsync" -avz / ec2-user@$EC2_HOST:/mnt/data-store/ --delete --log-file=$RSYNC_LOG \
+  --exclude "/home/lost+found" \
+  --exclude "/home/eva/.*" \
+  --exclude "/home/nico/.*" \
+  --exclude "/home/lindo/.config/chromium" \
+  --exclude "/home/lindo/.cache" \
+  --exclude "/home/lindo/.gvfs" \
+  --exclude "/home/lindo/.mozilla/firefox/*/Cache" \
+  --exclude "/home/lindo/.thumbnails" \
+  --exclude "/home/lindo/.local/share/Trash" \
+  --exclude "/home/lindo/misc" \
+  --include "/home/" \
+  --include "/home/**" \
+  --exclude "/etc/.pwd.lock" \
+  --exclude "/etc/at.deny" \
+  --exclude "/etc/fuse.conf" \
+  --exclude "/etc/group-" \
+  --exclude "/etc/gshadow" \
+  --exclude "/etc/gshadow-" \
+  --exclude "/etc/passwd-" \
+  --exclude "/etc/shadow" \
+  --exclude "/etc/shadow-" \
+  --exclude "/etc/sudoers" \
+  --exclude "/etc/NetworkManager/system-connections/Wired connection 1" \
+  --exclude "/etc/polkit-1/localauthority" \
+  --exclude "/etc/apt/trustdb.gpg" \
+  --exclude "/etc/apt/trusted.gpg" \
+  --exclude "/etc/cups/printers.conf" \
+  --exclude "/etc/cups/printers.conf.O" \
+  --exclude "/etc/cups/subscriptions.conf" \
+  --exclude "/etc/cups/subscriptions.conf.O" \
+  --exclude "/etc/cups/ssl" \
+  --exclude "/etc/default/cacerts" \
+  --exclude "/etc/exim4/passwd.client" \
+  --exclude "/etc/ssl/private" \
+  --exclude "/etc/ppp/chap-secrets" \
+  --exclude "/etc/ppp/pap-secrets" \
+  --exclude "/etc/security/opasswd" \
+  --exclude "/etc/ssh/ssh_host_dsa_key" \
+  --exclude "/etc/ssh/ssh_host_ecdsa_key" \
+  --exclude "/etc/ssh/ssh_host_rsa_key" \
+  --exclude "/etc/sudoers.d/README" \
+  --exclude "/etc/fstab" \
+  --include "/etc/" \
+  --include "/etc/**" \
+  --include "/usr/" \
+  --include "/usr/local/" \
+  --include "/usr/local/**" \
+  --exclude "*"
+echo "***Info - Finished rsync."
+
+# Now finish up.
+
+# Unmount the volume.
+/usr/bin/ssh -q -t -t -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i $EC2_KEY_LOC/amznkey.pem \
+  ec2-user@$EC2_HOST "sudo umount /mnt/data-store"
+err=$?
+if [ $err -ne 0 ]
+then
+  echo "***Error - SSH to remote server to unmount volume failed with error code ${err}."
+  echo "***Error - Terminating backup."
+  exit 1
+else
+  echo "***Info - Unmounted volume $EC2_VOLUME."
+fi
+
+# Detach volume from instance. 
+aws ec2 detach-volume --volume-id $EC2_VOLUME > /dev/null
+sleep 30
+echo "***Info - Detached volume $EC2_VOLUME."
+
+# Terminate ec2 instance.
+aws ec2 terminate-instances --instance-ids $EC2_INSTANCE > /dev/null
+sleep 60
+echo "***Info - Terminated instance $EC2_INSTANCE."
+
+# Delete security group.
+aws ec2 delete-security-group --group-name backup > /dev/null
+echo "***Info - Deleted security group $EC2_SG."
+
+# Backup volume in an aws s3 snapshot.
+EC2_SS=`aws ec2 create-snapshot --volume-id $EC2_VOLUME --description "lindo's backup snapshot" \
+  | tr '\t' '\n' | grep '^snap-'`
+sleep 30
+if [ -z "$EC2_SS" ]
+then
+  echo "***Error - Can't create snapshot, terminating."
+  exit 1
+else
+  echo "***Info - Created S3 snapshot $EC2_SS of volume $EC2_VOLUME."
+fi
+
+# Delete volume.
+aws ec2 delete-volume --volume $EC2_VOLUME > /dev/null
+echo "***Info - Deleted volume $EC2_VOLUME"
+
+echo "***************************************************************"
+echo "Completed ec2 backup of `uname -n` on `date +%y/%m/%d_%H:%M:%S`"
+echo "***************************************************************"
+
+exit

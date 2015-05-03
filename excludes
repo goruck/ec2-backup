@@ -1,45 +1,55 @@
 #
-/home/lost+found
-/home/eva/.*
-/home/nico/.*
-/home/lindo/.config/chromium
-/home/lindo/.cache
-/home/lindo/.gvfs
-/home/lindo/.mozilla/firefox/*/Cache
-/home/lindo/.thumbnails
-/home/lindo/.local/share/Trash
-/home/lindo/misc
+- /home/lost+found
+- /home/eva/.*
+- /home/nico/.*
+- /home/lindo/.config/chromium
+- /home/lindo/.cache
+- /home/lindo/.gvfs
+- /home/lindo/.mozilla/firefox/*/Cache
+- /home/lindo/.thumbnails
+- /home/lindo/.local/share/Trash
+- /home/lindo/misc
 #
-/etc/.pwd.lock
-/etc/at.deny
-/etc/fuse.conf
-/etc/group-
-/etc/gshadow
-/etc/gshadow-
-/etc/passwd-
-/etc/shadow
-/etc/shadow-
-/etc/sudoers
-/etc/NetworkManager/system-connections/Wired connection 1
-/etc/NetworkManager/system-connections/Wired connection
-/etc/polkit-1/localauthority
-/etc/apt/trustdb.gpg
-/etc/apt/trusted.gpg
-/etc/cups/printers.conf
-/etc/cups/printers.conf.O
-/etc/cups/subscriptions.conf
-/etc/cups/subscriptions.conf.O
-/etc/cups/ssl
-/etc/default/cacerts
-/etc/exim4/passwd.client
-/etc/ssl/private
-/etc/ppp/chap-secrets
-/etc/ppp/pap-secrets
-/etc/security/opasswd
-/etc/ssh/ssh_host_dsa_key
-/etc/ssh/ssh_host_ecdsa_key
-/etc/ssh/ssh_host_rsa_key
-/etc/sudoers.d/README
-/etc/fstab
++ /home/
++ /home/**
+#
+- /etc/.pwd.lock
+- /etc/at.deny
+- /etc/fuse.conf
+- /etc/group-
+- /etc/gshadow
+- /etc/gshadow-
+- /etc/passwd-
+- /etc/shadow
+- /etc/shadow-
+- /etc/sudoers
+- /etc/NetworkManager/system-connections/Wired connection 1
+- /etc/NetworkManager/system-connections/Wired connection
+- /etc/polkit-1/localauthority
+- /etc/apt/trustdb.gpg
+- /etc/apt/trusted.gpg
+- /etc/cups/printers.conf
+- /etc/cups/printers.conf.O
+- /etc/cups/subscriptions.conf
+- /etc/cups/subscriptions.conf.O
+- /etc/cups/ssl
+- /etc/default/cacerts
+- /etc/exim4/passwd.client
+- /etc/ssl/private
+- /etc/ppp/chap-secrets
+- /etc/ppp/pap-secrets
+- /etc/security/opasswd
+- /etc/ssh/ssh_host_dsa_key
+- /etc/ssh/ssh_host_ecdsa_key
+- /etc/ssh/ssh_host_rsa_key
+- /etc/sudoers.d/README
+- /etc/fstab
+#
++ /etc/
++ /etc/**
+#
++ /usr/
++ /usr/local/
++ /usr/local/**
 #
 *

@@ -23,8 +23,10 @@
 # 11. Backup the volume to an S3 snapshot. 
 # 12. Delete the volume. 
 
-# Define location of rsync logfile.
+# Define location of rsync log, excludes, and includes files.
 RSYNC_LOG=/home/lindo/backup/ec2-backup-rsync.log
+EXCLUDE_FILE=/home/lindo/backup/ec2-backup/excludes
+INCLUDE_FILE=/home/lindo/backup/ec2-backup/includes
 
 ### ec2 parameters ###
 # Define machine. ami-10fd7020 is an amazon linux x64 ebs amazon machine instance (default user is ec2-user).
@@ -204,56 +206,23 @@ fi
 
 # Backup starting at / using rsync push via remote shell. 
 /usr/bin/rsync -q -e "/usr/bin/ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i $EC2_KEY_LOC/amznkey.pem" \
-  --rsync-path "sudo rsync" -avz / ec2-user@$EC2_HOST:/mnt/data-store/ --delete --log-file=$RSYNC_LOG \
-  --exclude "/home/lost+found" \
-  --exclude "/home/eva/.*" \
-  --exclude "/home/nico/.*" \
-  --exclude "/home/lindo/.config/chromium" \
-  --exclude "/home/lindo/.cache" \
-  --exclude "/home/lindo/.gvfs" \
-  --exclude "/home/lindo/.mozilla/firefox/*/Cache" \
-  --exclude "/home/lindo/.thumbnails" \
-  --exclude "/home/lindo/.local/share/Trash" \
-  --exclude "/home/lindo/misc" \
-  --include "/home/" \
-  --include "/home/**" \
-  --exclude "/etc/.pwd.lock" \
-  --exclude "/etc/at.deny" \
-  --exclude "/etc/fuse.conf" \
-  --exclude "/etc/group-" \
-  --exclude "/etc/gshadow" \
-  --exclude "/etc/gshadow-" \
-  --exclude "/etc/passwd-" \
-  --exclude "/etc/shadow" \
-  --exclude "/etc/shadow-" \
-  --exclude "/etc/sudoers" \
-  --exclude "/etc/NetworkManager/system-connections/Wired connection 1" \
-  --exclude "/etc/polkit-1/localauthority" \
-  --exclude "/etc/apt/trustdb.gpg" \
-  --exclude "/etc/apt/trusted.gpg" \
-  --exclude "/etc/cups/printers.conf" \
-  --exclude "/etc/cups/printers.conf.O" \
-  --exclude "/etc/cups/subscriptions.conf" \
-  --exclude "/etc/cups/subscriptions.conf.O" \
-  --exclude "/etc/cups/ssl" \
-  --exclude "/etc/default/cacerts" \
-  --exclude "/etc/exim4/passwd.client" \
-  --exclude "/etc/ssl/private" \
-  --exclude "/etc/ppp/chap-secrets" \
-  --exclude "/etc/ppp/pap-secrets" \
-  --exclude "/etc/security/opasswd" \
-  --exclude "/etc/ssh/ssh_host_dsa_key" \
-  --exclude "/etc/ssh/ssh_host_ecdsa_key" \
-  --exclude "/etc/ssh/ssh_host_rsa_key" \
-  --exclude "/etc/sudoers.d/README" \
-  --exclude "/etc/fstab" \
-  --include "/etc/" \
-  --include "/etc/**" \
-  --include "/usr/" \
-  --include "/usr/local/" \
-  --include "/usr/local/**" \
-  --exclude "*"
-echo "***Info - Finished rsync."
+  --rsync-path "sudo rsync" -avz / ec2-user@$EC2_HOST:/mnt/data-store/ \
+  --log-file=$RSYNC_LOG --exclude-from=$EXCLUDE_FILE --include-from=$INCLUDE_FILE
+err=$?
+if [ $err -ne 0 ]
+then
+  echo "***Error - rsync failed with error code ${err}."
+  echo "***Error - Terminating backup."
+  aws ec2 detach-volume --volume-id $EC2_VOLUME > /dev/null
+  sleep 30
+  aws ec2 terminate-instances --instance-ids $EC2_INSTANCE > /dev/null
+  sleep 60
+  aws ec2 delete-security-group --group-name backup > /dev/null
+  aws ec2 delete-volume --volume $EC2_VOLUME > /dev/null
+  exit 1
+else
+  echo "***Info - Finished rsync."
+fi
 
 # Now finish up.
 

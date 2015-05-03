@@ -1,10 +1,12 @@
 #!/bin/sh
 
 # Script to backup linux server to aws ec2.
-# Lindo St. Angel 2014.
+# Lindo St. Angel 2014/5.
 
 # Script assumes an existing aws account and aws cli tools have been installed on client.
-# The aws cli's credentials must have been correctly configured and command output set to 'text'. 
+# The aws cli's credentials must have been correctly configured and command output set to 'text'.
+
+# Script only uses aws CPU and disk space while in operation to minimize $$.
 
 # The script backups incremental changes from the last backup.
 # This assumes that a full backup was done to start with. 
@@ -23,10 +25,9 @@
 # 11. Backup the volume to an S3 snapshot. 
 # 12. Delete the volume. 
 
-# Define location of rsync log, excludes, and includes files.
+# Define location of rsync log and excludes files.
 RSYNC_LOG=/home/lindo/backup/ec2-backup-rsync.log
 EXCLUDE_FILE=/home/lindo/backup/ec2-backup/excludes
-INCLUDE_FILE=/home/lindo/backup/ec2-backup/includes
 
 ### ec2 parameters ###
 # Define machine. ami-10fd7020 is an amazon linux x64 ebs amazon machine instance (default user is ec2-user).
@@ -207,7 +208,7 @@ fi
 # Backup starting at / using rsync push via remote shell. 
 /usr/bin/rsync -q -e "/usr/bin/ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i $EC2_KEY_LOC/amznkey.pem" \
   --rsync-path "sudo rsync" -avz / ec2-user@$EC2_HOST:/mnt/data-store/ \
-  --log-file=$RSYNC_LOG --exclude-from=$EXCLUDE_FILE --include-from=$INCLUDE_FILE
+  --log-file=$RSYNC_LOG --exclude-from=$EXCLUDE_FILE
 err=$?
 if [ $err -ne 0 ]
 then

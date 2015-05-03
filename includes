@@ -1,0 +1,9 @@
+#
+/home/
+/home/**
+#
+/etc/
+/etc/**
+/usr/
+/usr/local/
+/usr/local/**

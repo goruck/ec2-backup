@@ -1,10 +1,12 @@
 # Script to backup linux server to aws ec2.
-# Lindo St. Angel 2014.
+# Lindo St. Angel 2014/5.
 
 # Script assumes an existing aws account and aws cli tools have been installed on client.
-# The aws cli's credentials must have been correctly configured and command output set to 'text'. 
+# The aws cli's credentials must have been correctly configured and command output set to 'text'.
 
-# The script backups incremental changes from the last backup.
+# Script only uses aws CPU and disk space while in operation to minimize $$.
+
+# Script backups incremental changes from the last backup.
 # This assumes that a full backup was done to start with. 
 
 # This script generally follows these steps (with error checking).

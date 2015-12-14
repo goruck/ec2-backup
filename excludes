@@ -44,6 +44,10 @@
 - /etc/ssh/ssh_host_rsa_key
 - /etc/sudoers.d/README
 - /etc/fstab
+- /etc/shadow.org
+- /etc/subgid-
+- /etc/subuid-
+- /etc/cups/ppd/Officejet-7200-series.ppd
 #
 + /etc/
 + /etc/**

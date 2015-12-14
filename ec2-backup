@@ -57,7 +57,7 @@ else
 fi
 
 # Get the ID of the previous snapshot. (To do - figure out why Values=lindo\'s backup snapshot doesn't work.) 
-SS_ID=`aws ec2 describe-snapshots --owner self --filters Name=description,Values=*backup* | tail -n 1 | awk '/snap*/ {print $8}'`
+SS_ID=`aws ec2 describe-snapshots --owner self --filters Name=description,Values=*backup* | tail -n 1 | awk '/snap*/ {print $9}'`
 if [ -z "SS_ID" ]
 then
   echo "***Error - Cannot get ID of previous snapshot, terminating backup"
@@ -158,7 +158,7 @@ do
   fi
 done
 /usr/bin/ssh-keygen -lf /tmp/host.key > /tmp/host.fingerprint
-ACTUAL_FINGERPRINTS=`awk '{print $2}' /tmp/host.fingerprint`
+ACTUAL_FINGERPRINTS=`awk '{print $2}' /tmp/host.fingerprint | head -n 1`
 echo "***Info - Actual fingerprints are $ACTUAL_FINGERPRINTS."
 shred -u /tmp/host.key /tmp/host.fingerprint
 

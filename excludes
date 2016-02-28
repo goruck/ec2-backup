@@ -28,11 +28,7 @@
 - /etc/polkit-1/localauthority
 - /etc/apt/trustdb.gpg
 - /etc/apt/trusted.gpg
-- /etc/cups/printers.conf
-- /etc/cups/printers.conf.O
-- /etc/cups/subscriptions.conf
-- /etc/cups/subscriptions.conf.O
-- /etc/cups/ssl
+- /etc/cups/*
 - /etc/default/cacerts
 - /etc/exim4/passwd.client
 - /etc/ssl/private
@@ -47,7 +43,6 @@
 - /etc/shadow.org
 - /etc/subgid-
 - /etc/subuid-
-- /etc/cups/ppd/Officejet-7200-series.ppd
 #
 + /etc/
 + /etc/**

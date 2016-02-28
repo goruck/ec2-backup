@@ -212,15 +212,21 @@ fi
 err=$?
 if [ $err -ne 0 ]
 then
-  echo "***Error - rsync failed with error code ${err}."
-  echo "***Error - Terminating backup."
-  aws ec2 detach-volume --volume-id $EC2_VOLUME > /dev/null
-  sleep 30
-  aws ec2 terminate-instances --instance-ids $EC2_INSTANCE > /dev/null
-  sleep 60
-  aws ec2 delete-security-group --group-name backup > /dev/null
-  aws ec2 delete-volume --volume $EC2_VOLUME > /dev/null
-  exit 1
+  if [ $err -eq 23 ] # Allow partial transfers which are likley due to file permission erros. 
+  then
+    echo "***Warning - rsync gave error code ${err}."
+    echo "***Warning - Finishing rsync with partial transfer."
+  else
+    echo "***Error - rsync failed with error code ${err}."
+    echo "***Error - Terminating backup."
+    aws ec2 detach-volume --volume-id $EC2_VOLUME > /dev/null
+    sleep 30
+    aws ec2 terminate-instances --instance-ids $EC2_INSTANCE > /dev/null
+    sleep 60
+    aws ec2 delete-security-group --group-name backup > /dev/null
+    aws ec2 delete-volume --volume $EC2_VOLUME > /dev/null
+    exit 1
+  fi
 else
   echo "***Info - Finished rsync."
 fi

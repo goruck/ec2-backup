@@ -46,8 +46,7 @@ echo "Starting ec2 backup of `uname -n` on `date +%y/%m/%d_%H:%M:%S`"
 echo "***************************************************************"
 
 # Get external ip address of host to be backed up.
-IP_ADDR=`curl -s ip.appspot.com`
-#IP_ADDR=`curl -s ifconfig.me/ip`
+IP_ADDR=`dig +short myip.opendns.com @resolver1.opendns.com`
 if [ -z "$IP_ADDR" ]
 then
   echo "***Error - Can't get external IP address, terminating."

@@ -1,6 +1,4 @@
-# bash script to backup a linux machine using aws
-
-The script assumes an existing aws account and aws cli tools have been installed on the client. The aws cli's credentials must have been correctly configured and command output set to 'text'. The script only uses aws CPU and disk space while in operation to minimize $$. The script backups incremental changes from the last backup and assumes that a full backup was done to start with.
+# bash script to backup a linux machine to the cloud using aws and rsync
 
 This script generally follows these steps (with error checking).
 1. Get external IP address of host (also serves to check for Internet connection.)
@@ -16,4 +14,8 @@ This script generally follows these steps (with error checking).
 11. Backup the volume to an S3 snapshot. 
 12. Delete the volume.
 
-Note that ServerAliveInterval and ServerAliveCountMax should be set with non-default values in your SSH config to avoid SSH timeouts when backing up large datasets. See [this](https://unix.stackexchange.com/questions/3026/what-options-serveraliveinterval-and-clientaliveinterval-in-sshd-config-exac) for details. 
+The script assumes an existing aws account and aws cli tools have been installed on the client. The aws cli's credentials must have been correctly configured and command output set to 'text'. The script only uses aws CPU and disk space while in operation to minimize $$ and then takes an S3 snapshot of the disk for permanent storage. The script backups incremental changes from the last backup and assumes that a full backup was done to start with.
+
+ServerAliveInterval and ServerAliveCountMax should be set with non-default values in your SSH config to avoid SSH timeouts when backing up large datasets. See [this](https://unix.stackexchange.com/questions/3026/what-options-serveraliveinterval-and-clientaliveinterval-in-sshd-config-exac) for details.
+
+The script runs rsync with a 5 MB bandwidth limit, this can be changed to a higher or lower value depending on the Internet bandwidth available. 

@@ -187,7 +187,9 @@ echo "***Info - Attached storage volume $EC2_VOLUME."
 /usr/bin/ssh -q -t -t -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no \
   -i $EC2_KEY_LOC/amznkey.pem ec2-user@$EC2_HOST \
   "sudo mkdir /mnt/data-store && sudo mount /dev/xvdh /mnt/data-store && \
-  echo 'Defaults !requiretty' | sudo tee /etc/sudoers.d/rsync > /dev/null"
+  echo 'Defaults !requiretty' | sudo tee /etc/sudoers.d/rsync > /dev/null && \
+  echo 'ClientAliveInterval 30' | sudo tee /etc/ssh/sshd_config > /dev/null && \
+  echo 'ClientAliveCountMax 6' | sudo tee /etc/ssh/sshd_config > /dev/null"
 err=$?
 if [ $err -ne 0 ]
 then

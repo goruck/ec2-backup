@@ -1,6 +1,6 @@
-# bash script to backup a linux machine to aws ec2
+# bash script to backup a linux machine using aws
 
-The script assumes an existing aws account and aws cli tools have been installed on the client. The aws cli's credentials must have been correctly configured and command output set to 'text'. The script only uses aws CPU and disk space while in operation to minimize $$. The script backups incremental changes from the last backup. This assumes that a full backup was done to start with. 
+The script assumes an existing aws account and aws cli tools have been installed on the client. The aws cli's credentials must have been correctly configured and command output set to 'text'. The script only uses aws CPU and disk space while in operation to minimize $$. The script backups incremental changes from the last backup and assumes that a full backup was done to start with.
 
 This script generally follows these steps (with error checking).
 1. Get external IP address of host (also serves to check for Internet connection.)

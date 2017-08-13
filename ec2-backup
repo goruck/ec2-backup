@@ -209,7 +209,8 @@ fi
 # Backup starting at / using rsync push via remote shell. 
 /usr/bin/rsync -q -e "/usr/bin/ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i $EC2_KEY_LOC/amznkey.pem" \
   --rsync-path "sudo rsync" -avz / ec2-user@$EC2_HOST:/mnt/data-store/ \
-  --log-file=$RSYNC_LOG --exclude-from=$EXCLUDE_FILE
+  --log-file=$RSYNC_LOG --exclude-from=$EXCLUDE_FILE \
+  --bwlimit=5000
 err=$?
 if [ $err -ne 0 ]
 then

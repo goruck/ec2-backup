@@ -1,4 +1,4 @@
-bash script to backup a linux machine to aws ec2
+# bash script to backup a linux machine to aws ec2
 
 The script assumes an existing aws account and aws cli tools have been installed on the client. The aws cli's credentials must have been correctly configured and command output set to 'text'. The script only uses aws CPU and disk space while in operation to minimize $$. The script backups incremental changes from the last backup. This assumes that a full backup was done to start with. 
 
@@ -16,4 +16,4 @@ This script generally follows these steps (with error checking).
 11. Backup the volume to an S3 snapshot. 
 12. Delete the volume.
 
-Note that ServerAliveInterval and ServerAliveCountMax should be set with non-default values in your SSH config to avoid SSH timeouts when backing up large datasets. See https://unix.stackexchange.com/questions/3026/what-options-serveraliveinterval-and-clientaliveinterval-in-sshd-config-exac for details. 
+Note that ServerAliveInterval and ServerAliveCountMax should be set with non-default values in your SSH config to avoid SSH timeouts when backing up large datasets. See [this](https://unix.stackexchange.com/questions/3026/what-options-serveraliveinterval-and-clientaliveinterval-in-sshd-config-exac) for details. 

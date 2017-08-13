@@ -146,7 +146,7 @@ sleep 150
 i=0
 while [ $i -lt 15 ]
 do
-  /usr/bin/ssh-keyscan $EC2_HOST > /tmp/host.key
+  /usr/bin/ssh-keyscan -t rsa $EC2_HOST > /tmp/host.key
   if grep "ssh-rsa" /tmp/host.key > /dev/null
   then
     break

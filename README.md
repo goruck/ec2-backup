@@ -18,4 +18,4 @@ The script assumes an existing aws account and aws cli tools have been installed
 
 ServerAliveInterval and ServerAliveCountMax should be set with non-default values in your SSH config to avoid SSH timeouts when backing up large datasets. See [this](https://unix.stackexchange.com/questions/3026/what-options-serveraliveinterval-and-clientaliveinterval-in-sshd-config-exac) for details.
 
-The script runs rsync with a 5 MB bandwidth limit, this can be changed to a higher or lower value depending on the Internet bandwidth available. 
+The script runs rsync with a 5 MB/s bandwidth limit, this can be changed to a higher or lower value depending on the Internet bandwidth available. 

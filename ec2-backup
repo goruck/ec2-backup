@@ -29,7 +29,8 @@
 # Define location of rsync log and excludes files.
 RSYNC_LOG=/home/lindo/backup/ec2-backup-rsync.log
 EXCLUDE_FILE=/home/lindo/backup/ec2-backup/excludes
-# Define maximum upload bandwidth in MB/s (should be ~ 50% max Internet upload speed). 
+# Define maximum upload bandwidth in kB/s.
+# Should be about 50% of max Internet upload speed.
 BW_LIMIT=5000
 
 ### ec2 parameters ###

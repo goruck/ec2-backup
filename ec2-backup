@@ -25,9 +25,12 @@
 # 11. Backup the volume to an S3 snapshot. 
 # 12. Delete the volume. 
 
+### rsync parameters ####
 # Define location of rsync log and excludes files.
 RSYNC_LOG=/home/lindo/backup/ec2-backup-rsync.log
 EXCLUDE_FILE=/home/lindo/backup/ec2-backup/excludes
+# Define maximum upload bandwidth in MB/s (should be ~ 50% max Internet upload speed). 
+BW_LIMIT=5000
 
 ### ec2 parameters ###
 # Define machine. ami-10fd7020 is an amazon linux x64 ebs amazon machine instance (default user is ec2-user).
@@ -210,11 +213,11 @@ fi
 /usr/bin/rsync -q -e "/usr/bin/ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i $EC2_KEY_LOC/amznkey.pem" \
   --rsync-path "sudo rsync" -avz / ec2-user@$EC2_HOST:/mnt/data-store/ \
   --log-file=$RSYNC_LOG --exclude-from=$EXCLUDE_FILE \
-  --bwlimit=5000
+  --bwlimit=$BW_LIMIT
 err=$?
 if [ $err -ne 0 ]
 then
-  if [ $err -eq 23 ] # Allow partial transfers which are likley due to file permission erros. 
+  if [ $err -eq 23 ] # Allow partial transfers which are likley due to file permission errors. 
   then
     echo "***Warning - rsync gave error code ${err}."
     echo "***Warning - Finishing rsync with partial transfer."
